@@ -1,0 +1,51 @@
+export const lightTheme = {
+  background:      '#F0F4FF',
+  card:            '#FFFFFF',
+  cardBack:        '#F0F4FF',
+  tint:            '#EEF4FF',
+  divider:         '#DCE8FF',
+  textPrimary:     '#1A1A2E',
+  textSecondary:   '#555555',
+  textMuted:       '#9E9E9E',
+  border:          '#E0E0E0',
+  inputBg:         '#F5F7FA',
+  tabBar:          '#FFFFFF',
+  tabBarActive:    '#1565C0',
+  tabBarInactive:  '#BDBDBD',
+  premiumTint:     '#EDE7F6',
+  adTint:          '#FFF3E0',
+  // Brand (same in both themes)
+  primary:         '#1565C0',
+  gold:            '#FFD54F',
+  lightBlue:       '#90CAF9',
+  orange:          '#E65100',
+  purple:          '#7B1FA2',
+  shadowColor:     '#1565C0',
+};
+
+export const darkTheme = {
+  background:      '#0F1117',
+  card:            '#1A2233',
+  cardBack:        '#141C28',
+  tint:            '#1A2840',
+  divider:         '#253350',
+  textPrimary:     '#E8EEFF',
+  textSecondary:   '#8896B0',
+  textMuted:       '#5A6480',
+  border:          '#253350',
+  inputBg:         '#141C28',
+  tabBar:          '#1A2233',
+  tabBarActive:    '#90CAF9',
+  tabBarInactive:  '#4A5568',
+  premiumTint:     '#2A1840',
+  adTint:          '#2A1808',
+  // Brand (same in both themes)
+  primary:         '#1565C0',
+  gold:            '#FFD54F',
+  lightBlue:       '#90CAF9',
+  orange:          '#E65100',
+  purple:          '#7B1FA2',
+  shadowColor:     '#1565C0',
+};
+
+export type Theme = typeof lightTheme;

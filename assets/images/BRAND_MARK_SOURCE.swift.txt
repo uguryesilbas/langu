@@ -1,0 +1,226 @@
+import Foundation
+import CoreGraphics
+import ImageIO
+import UniformTypeIdentifiers
+import CoreText
+
+// ---------------------------------------------------------------------------
+// LinguaCard brand mark generator
+//
+// Mark concept: two stacked flashcards (a gold card peeking out behind a white
+// card) with a large "A" on the front card and a gold underline beneath it.
+// Reads as "language" + "flashcard" and stays legible at 40x40.
+// ---------------------------------------------------------------------------
+
+struct RGBA { let r: CGFloat; let g: CGFloat; let b: CGFloat; let a: CGFloat }
+
+func rgb(_ hex: UInt32, _ alpha: CGFloat = 1.0) -> RGBA {
+    RGBA(r: CGFloat((hex >> 16) & 0xFF) / 255.0,
+         g: CGFloat((hex >> 8) & 0xFF) / 255.0,
+         b: CGFloat(hex & 0xFF) / 255.0,
+         a: alpha)
+}
+
+let blueDark  = rgb(0x0D47A1)
+let bluePrim  = rgb(0x1565C0)
+let blueLight = rgb(0x1E88E5)
+let gold      = rgb(0xFFD54F)
+let goldDeep  = rgb(0xF5B914)
+let white     = rgb(0xFFFFFF)
+
+func makeContext(_ size: Int, opaque: Bool = false) -> CGContext {
+    let cs = CGColorSpaceCreateDeviceRGB()
+    let ctx = CGContext(data: nil,
+                        width: size,
+                        height: size,
+                        bitsPerComponent: 8,
+                        bytesPerRow: 0,
+                        space: cs,
+                        bitmapInfo: (opaque ? CGImageAlphaInfo.noneSkipLast
+                                            : CGImageAlphaInfo.premultipliedLast).rawValue)!
+    ctx.setAllowsAntialiasing(true)
+    ctx.setShouldAntialias(true)
+    return ctx
+}
+
+func setFill(_ ctx: CGContext, _ c: RGBA) {
+    ctx.setFillColor(red: c.r, green: c.g, blue: c.b, alpha: c.a)
+}
+
+func roundedRect(_ rect: CGRect, _ radius: CGFloat) -> CGPath {
+    CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil)
+}
+
+/// Vertical linear gradient over the whole canvas.
+func fillGradient(_ ctx: CGContext, _ size: CGFloat, _ top: RGBA, _ bottom: RGBA) {
+    let cs = CGColorSpaceCreateDeviceRGB()
+    let colors = [
+        CGColor(colorSpace: cs, components: [top.r, top.g, top.b, top.a])!,
+        CGColor(colorSpace: cs, components: [bottom.r, bottom.g, bottom.b, bottom.a])!,
+    ] as CFArray
+    let grad = CGGradient(colorsSpace: cs, colors: colors, locations: [0.0, 1.0])!
+    ctx.drawLinearGradient(grad,
+                           start: CGPoint(x: 0, y: size),
+                           end: CGPoint(x: 0, y: 0),
+                           options: [])
+}
+
+/// Returns the outline of the letter "A" scaled to fit `box` (centred on its
+/// own ink bounds, so optical centring is exact regardless of font metrics).
+func letterPath(_ box: CGRect) -> CGPath? {
+    let font = CTFontCreateWithName("Helvetica-Bold" as CFString, 100, nil)
+    var chars: [UniChar] = Array("A".utf16)
+    var glyphs = [CGGlyph](repeating: 0, count: chars.count)
+    guard CTFontGetGlyphsForCharacters(font, &chars, &glyphs, chars.count) else { return nil }
+    guard let raw = CTFontCreatePathForGlyph(font, glyphs[0], nil) else { return nil }
+
+    let ink = raw.boundingBoxOfPath
+    let scale = min(box.width / ink.width, box.height / ink.height)
+    var t = CGAffineTransform.identity
+        .translatedBy(x: box.midX, y: box.midY)
+        .scaledBy(x: scale, y: scale)
+        .translatedBy(x: -ink.midX, y: -ink.midY)
+    return raw.copy(using: &t)
+}
+
+/// Fills the letter "A" inside `box` with `color`.
+func drawLetter(_ ctx: CGContext, _ box: CGRect, _ color: RGBA) {
+    guard let path = letterPath(box) else { return }
+    setFill(ctx, color)
+    ctx.addPath(path)
+    ctx.fillPath()
+}
+
+/// Clears (punches out) the letter "A" inside `box`.
+func clearLetter(_ ctx: CGContext, _ box: CGRect) {
+    guard let path = letterPath(box) else { return }
+    ctx.saveGState()
+    ctx.setBlendMode(.clear)
+    setFill(ctx, RGBA(r: 0, g: 0, b: 0, a: 1))
+    ctx.addPath(path)
+    ctx.fillPath()
+    ctx.restoreGState()
+}
+
+/// The core mark: back gold card (rotated) + front white card + "A" + underline.
+/// `s` is the canvas size; the mark occupies `scale` fraction of it, centred.
+func drawMark(_ ctx: CGContext, size s: CGFloat, scale: CGFloat, cardFill: RGBA, letterColor: RGBA, accent: RGBA, monochrome: Bool) {
+    let markW = s * scale
+    let cardW = markW
+    let cardH = markW * 1.16
+    let cx = s / 2
+    let cy = s / 2
+    let radius = cardW * 0.17
+
+    // --- back card (gold), rotated so it peeks out top-right ---
+    if !monochrome {
+        ctx.saveGState()
+        ctx.translateBy(x: cx, y: cy)
+        ctx.rotate(by: 11.0 * .pi / 180.0)
+        ctx.translateBy(x: -cx, y: -cy)
+        let backRect = CGRect(x: cx - cardW / 2, y: cy - cardH / 2, width: cardW, height: cardH)
+        setFill(ctx, accent)
+        ctx.addPath(roundedRect(backRect, radius))
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+
+    // --- front card ---
+    let frontRect = CGRect(x: cx - cardW / 2, y: cy - cardH / 2, width: cardW, height: cardH)
+    setFill(ctx, cardFill)
+    ctx.addPath(roundedRect(frontRect, radius))
+    ctx.fillPath()
+
+    // Glyph sits in the upper two-thirds; the gold bar anchors the lower third.
+    let barW = cardW * 0.44
+    let barH = cardH * 0.072
+    let barRect = CGRect(x: cx - barW / 2,
+                         y: frontRect.minY + cardH * 0.155,
+                         width: barW, height: barH)
+    let letterBox = CGRect(x: cx - cardW * 0.30,
+                           y: barRect.maxY + cardH * 0.09,
+                           width: cardW * 0.60,
+                           height: cardH * 0.46)
+
+    if monochrome {
+        // Monochrome variant: punch the glyph out so the silhouette stays readable.
+        clearLetter(ctx, letterBox)
+        ctx.saveGState()
+        ctx.setBlendMode(.clear)
+        setFill(ctx, RGBA(r: 0, g: 0, b: 0, a: 1))
+        ctx.addPath(roundedRect(barRect, barRect.height / 2))
+        ctx.fillPath()
+        ctx.restoreGState()
+        return
+    }
+
+    // --- letter ---
+    drawLetter(ctx, letterBox, letterColor)
+
+    // --- gold underline ---
+    setFill(ctx, accent)
+    ctx.addPath(roundedRect(barRect, barRect.height / 2))
+    ctx.fillPath()
+}
+
+func write(_ ctx: CGContext, to path: String) {
+    let image = ctx.makeImage()!
+    let url = URL(fileURLWithPath: path)
+    let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(dest, image, nil)
+    CGImageDestinationFinalize(dest)
+    print("wrote \(path)")
+}
+
+let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
+
+// --- 1. iOS / universal app icon: opaque, full-bleed blue gradient ---
+do {
+    let s = 1024
+    let ctx = makeContext(s, opaque: true)
+    fillGradient(ctx, CGFloat(s), blueLight, blueDark)
+    drawMark(ctx, size: CGFloat(s), scale: 0.50, cardFill: white, letterColor: bluePrim, accent: gold, monochrome: false)
+    write(ctx, to: "\(outDir)/icon.png")
+}
+
+// --- 2. Splash mark: transparent, mark only (splash bg colour comes from config) ---
+do {
+    let s = 1024
+    let ctx = makeContext(s)
+    drawMark(ctx, size: CGFloat(s), scale: 0.42, cardFill: white, letterColor: bluePrim, accent: gold, monochrome: false)
+    write(ctx, to: "\(outDir)/splash-icon.png")
+}
+
+// --- 3. Favicon ---
+do {
+    let s = 196
+    let ctx = makeContext(s, opaque: true)
+    fillGradient(ctx, CGFloat(s), blueLight, blueDark)
+    drawMark(ctx, size: CGFloat(s), scale: 0.54, cardFill: white, letterColor: bluePrim, accent: gold, monochrome: false)
+    write(ctx, to: "\(outDir)/favicon.png")
+}
+
+// --- 4. Android adaptive icon background (solid brand blue) ---
+do {
+    let s = 1024
+    let ctx = makeContext(s, opaque: true)
+    fillGradient(ctx, CGFloat(s), blueLight, blueDark)
+    write(ctx, to: "\(outDir)/android-icon-background.png")
+}
+
+// --- 5. Android adaptive icon foreground (transparent, inside 66% safe zone) ---
+do {
+    let s = 1024
+    let ctx = makeContext(s)
+    drawMark(ctx, size: CGFloat(s), scale: 0.36, cardFill: white, letterColor: bluePrim, accent: gold, monochrome: false)
+    write(ctx, to: "\(outDir)/android-icon-foreground.png")
+}
+
+// --- 6. Android monochrome icon (single-colour silhouette) ---
+do {
+    let s = 1024
+    let ctx = makeContext(s)
+    let black = rgb(0x000000)
+    drawMark(ctx, size: CGFloat(s), scale: 0.36, cardFill: black, letterColor: black, accent: black, monochrome: true)
+    write(ctx, to: "\(outDir)/android-icon-monochrome.png")
+}

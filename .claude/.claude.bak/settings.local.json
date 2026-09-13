@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Write",
+      "Bash(npx expo:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}
