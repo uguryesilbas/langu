@@ -42,7 +42,7 @@ Expo sablonunun ekledigi istenmeyen anahtarlar icin
 - stores/            -> Zustand stores
 - services/          -> SQLite, TTS, RevenueCat, AdMob (.web.ts stub'lari ile)
 - hooks/             -> Custom hooks
-- constants/         -> 100 kelime, tema, ceviriler, config
+- constants/         -> kelime havuzu (100), tema, ceviriler, config
 - types/             -> TypeScript types
 - db/                -> SQLite schema
 - utils/             -> locale, sanitize
@@ -97,11 +97,25 @@ fiyatlandirma sayilir. `getDisplayPrice()` bu yuzden silindi, geri ekleme.
   ATT prompt'u YOK -> `NSPrivacyTracking: false`
   Personalized reklama gecersen bu UCUNU BIRLIKTE degistir.
 
+### Baslangic kelime sayisi
+Yeni kurulumda kac kelime yuklenecegi `constants/words.ts` icindeki
+`INITIAL_WORD_COUNT` (su an 25) ile belirlenir. `SEED_WORD_POOL` 100 kelime
+tutar; `INITIAL_WORDS` bunun ilk N tanesidir. Sayiyi buyutmek tek satirlik
+bir degisiklik.
+Ancak `seedWordsIfEmpty()` sadece `words` tablosu BOSSA calisir — mevcut
+kurulumlarda sayi degismez, test icin uygulamayi silip yeniden kurmak gerekir.
+
 ### Diger
 - expo-speech: Android Expo Go'da calismaz -> dev build
 - RevenueCat & AdMob: native build gerekli
 - `__DEV__` ile AdMob test unit'i otomatik secilir
 - FlashCard: rotateY + backfaceVisibility:'hidden' SART
+- Form + liste ayni ekranda ise form `ListHeaderComponent` olarak verilir
+  (tek kaydirma alani). Bu prop bir JSX *element* olmali; inline component
+  fonksiyonu verirsen header her render'da remount olur ve odaktaki
+  TextInput her harfte klavyeyi kaybeder.
+  Klavye icin `automaticallyAdjustKeyboardInsets` kullaniliyor,
+  `KeyboardAvoidingView` DEGIL (o ekrani kucultur, kaydirma alani yaratmaz)
 - Boyutlar icin `useWindowDimensions()` kullan, modul seviyesinde
   `Dimensions.get()` KULLANMA (iPad Split View / rotasyon kirilir)
 - Kullanici girdisi `sanitizeUserText()` ile temizlenmeli (uzunluk + kontrol

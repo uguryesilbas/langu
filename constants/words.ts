@@ -1,6 +1,20 @@
 import { SeedWord } from '../types/word';
 
-export const INITIAL_WORDS: SeedWord[] = [
+/**
+ * How many words a fresh install starts with.
+ *
+ * The pool below is larger than this on purpose: raising the number ships
+ * more words without touching any other file. The pool is ordered by
+ * `sort_order` (easiest first), which is also the order the deck is shown in,
+ * so slicing from the front keeps the intended learning sequence.
+ *
+ * Changing this only affects devices whose `words` table is still empty —
+ * `seedWordsIfEmpty()` never re-seeds an existing database.
+ */
+export const INITIAL_WORD_COUNT = 25;
+
+/** Every word bundled with the app, ordered by `sort_order`. */
+export const SEED_WORD_POOL: SeedWord[] = [
   // --- DIFFICULTY 1 (sort_order 1-40) ---
   {
     en_word: 'time',
@@ -807,3 +821,6 @@ export const INITIAL_WORDS: SeedWord[] = [
     sort_order: 100,
   },
 ];
+
+/** The words actually inserted on first launch. */
+export const INITIAL_WORDS: SeedWord[] = SEED_WORD_POOL.slice(0, INITIAL_WORD_COUNT);
